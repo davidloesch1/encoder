@@ -1,0 +1,27 @@
+{
+  "name": "@davidloesch/encoder",
+  "version": "0.1.0",
+  "description": "TensorFlow.js-based behavioral fingerprint encoder that generates a 32-dimensional user fingerprint from browser events",
+  "main": "dist/encoder.min.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "webpack --mode production",
+    "build:slim": "webpack --mode production --env external_tf",
+    "build:dev": "webpack --mode development",
+    "generate-weights": "ts-node --project scripts/tsconfig.json scripts/generate-weights.ts",
+    "prebuild": "npm run generate-weights"
+  },
+  "keywords": ["fingerprint", "encoder", "tensorflow", "behavioral", "analytics"],
+  "license": "MIT",
+  "devDependencies": {
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.0",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0"
+  }
+}
