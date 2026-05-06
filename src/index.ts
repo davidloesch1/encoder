@@ -1,7 +1,7 @@
 import { GRUEncoder } from './encoder';
 import { EventCollector } from './collector';
 import { FeatureExtractor } from './features';
-import { FingerprintSender } from './sender';
+import { FingerprintSender, parseDestination } from './sender';
 import { TriggerManager } from './triggers';
 import { EncoderConfig, DEFAULT_CONFIG, TriggerType } from './types';
 
@@ -23,10 +23,11 @@ class FingerprintEncoder implements EncoderInstance {
 
   constructor(config: EncoderConfig) {
     const sessionId = config.sessionId || generateSessionId();
+    const destination = parseDestination(config.destination, config.eventName, config.headers);
 
     this.encoder = new GRUEncoder();
     this.features = new FeatureExtractor();
-    this.sender = new FingerprintSender(sessionId, config.eventName);
+    this.sender = new FingerprintSender(sessionId, destination);
 
     this.collector = new EventCollector((event) => {
       if (!this.ready) return;
@@ -93,10 +94,22 @@ function parseConfigFromScript(): EncoderConfig {
 
   if (!script) return { ...DEFAULT_CONFIG };
 
+  let headers: Record<string, string> = {};
+  const headersAttr = script.getAttribute('data-headers');
+  if (headersAttr) {
+    try {
+      headers = JSON.parse(headersAttr);
+    } catch {
+      // Invalid JSON, ignore
+    }
+  }
+
   return {
+    destination: script.getAttribute('data-destination') || DEFAULT_CONFIG.destination,
     interval: parseInt(script.getAttribute('data-interval') || '', 10) || DEFAULT_CONFIG.interval,
     eventCount: parseInt(script.getAttribute('data-event-count') || '', 10) || DEFAULT_CONFIG.eventCount,
     eventName: script.getAttribute('data-event-name') || DEFAULT_CONFIG.eventName,
+    headers,
   };
 }
 

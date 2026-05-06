@@ -18,9 +18,11 @@ export interface FingerprintPayload {
     triggerType: TriggerType;
 }
 export interface EncoderConfig {
+    destination: string;
     interval: number;
     eventCount: number;
     eventName: string;
+    headers: Record<string, string>;
     sessionId?: string;
 }
 export declare const DEFAULT_CONFIG: EncoderConfig;

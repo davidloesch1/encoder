@@ -30,16 +30,20 @@ export interface FingerprintPayload {
 }
 
 export interface EncoderConfig {
+  destination: string;
   interval: number;
   eventCount: number;
   eventName: string;
+  headers: Record<string, string>;
   sessionId?: string;
 }
 
 export const DEFAULT_CONFIG: EncoderConfig = {
+  destination: 'fullstory',
   interval: 30000,
   eventCount: 100,
   eventName: 'Fingerprint Generated',
+  headers: {},
 };
 
 export const EVENT_CATEGORIES: EventCategory[] = [
