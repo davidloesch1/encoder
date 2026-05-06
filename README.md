@@ -1,37 +1,91 @@
 # Encoder
 
-A TensorFlow.js-based behavioral fingerprint encoder that generates a continuously-updated 32-dimensional fingerprint from user browser events. The fingerprint is computed via a GRU recurrent neural network and POSTed to a configurable endpoint.
+A TensorFlow.js-based behavioral fingerprint encoder that generates a continuously-updated 32-dimensional fingerprint from user browser events and sends it to FullStory as a custom event.
 
 ## How It Works
 
 1. **Collect** - DOM events (clicks, mouse movements, scrolling, keystrokes, navigation) are captured in real-time
 2. **Encode** - Each event is normalized into a feature vector and fed through a GRU encoder that maintains a 32-dim hidden state
-3. **Emit** - The fingerprint is POSTed to your endpoint on configurable triggers (time interval, event count, session end)
+3. **Emit** - The fingerprint is sent to FullStory via `FS('trackEvent')` on configurable triggers (time interval, event count, session end)
 
 The fingerprint is a rolling representation of user behavior -- it's always current and always available.
 
-## Quick Start (Script Tag)
+## Setup
+
+### 1. Add FullStory to your page (in the `<head>`)
+
+```html
+<script>
+window['_fs_host'] = 'fullstory.com';
+window['_fs_script'] = 'edge.fullstory.com/s/fs.js';
+window['_fs_org'] = 'o-248QM9-na1';
+window['_fs_namespace'] = 'FS';
+!function(m,n,e,t,l,o,g,y){var s,f,a=function(h){
+return!(h in m)||(m.console&&m.console.log&&m.console.log('FullStory namespace conflict. Please set window["_fs_namespace"].'),!1)}(e)
+;function p(b){var h,d=[];function j(){h&&(d.forEach((function(b){var d;try{d=b[h[0]]&&b[h[0]](h[1])}catch(h){return void(b[3]&&b[3](h))}
+d&&d.then?d.then(b[2],b[3]):b[2]&&b[2](d)})),d.length=0)}function r(b){return function(d){h||(h=[b,d],j())}}return b(r(0),r(1)),{
+then:function(b,h){return p((function(r,i){d.push([b,h,r,i]),j()}))}}}a&&(g=m[e]=function(){var b=function(b,d,j,r){function i(i,c){
+h(b,d,j,i,c,r)}r=r||2;var c,u=/Async$/;return u.test(b)?(b=b.replace(u,""),"function"==typeof Promise?new Promise(i):p(i)):h(b,d,j,c,c,r)}
+;function h(h,d,j,r,i,c){return b._api?b._api(h,d,j,r,i,c):(b.q&&b.q.push([h,d,j,r,i,c]),null)}return b.q=[],b}(),y=function(b){function h(h){
+"function"==typeof h[4]&&h[4](new Error(b))}var d=g.q;if(d){for(var j=0;j<d.length;j++)h(d[j]);d.length=0,d.push=h}},function(){
+(o=n.createElement(t)).async=!0,o.crossOrigin="anonymous",o.src="https://"+l,o.onerror=function(){y("Error loading "+l)}
+;var b=n.getElementsByTagName(t)[0];b&&b.parentNode?b.parentNode.insertBefore(o,b):n.head.appendChild(o)}(),function(){function b(){}
+function h(b,h,d){g(b,h,d,1)}function d(b,d,j){h("setProperties",{type:b,properties:d},j)}function j(b,h){d("user",b,h)}function r(b,h,d){j({
+uid:b},d),h&&j(h,d)}g.identify=r,g.setUserVars=j,g.identifyAccount=b,g.clearUserCookie=b,g.setVars=d,g.event=function(b,d,j){h("trackEvent",{
+name:b,properties:d},j)},g.anonymize=function(){r(!1)},g.shutdown=function(){h("shutdown")},g.restart=function(){h("restart")},
+g.log=function(b,d){h("log",{level:b,msg:d})},g.consent=function(b){h("setIdentity",{consent:!arguments.length||b})}}(),s="fetch",
+f="XMLHttpRequest",g._w={},g._w[f]=m[f],g._w[s]=m[s],m[s]&&(m[s]=function(){return g._w[s].apply(this,arguments)}),g._v="2.0.0")
+}(window,document,window._fs_namespace,"script",window._fs_script);
+</script>
+```
+
+### 2. Add the encoder script (after FullStory)
+
+```html
+<script src="https://YOUR-RAILWAY-APP.up.railway.app/encoder.min.js"></script>
+```
+
+That's it. The encoder auto-initializes and begins sending fingerprint events to FullStory.
+
+## Configuration (optional)
+
+Customize via `data-*` attributes on the script tag:
 
 ```html
 <script
-  src="https://cdn.example.com/encoder.min.js"
-  data-endpoint="https://api.example.com/fingerprint"
+  src="https://YOUR-RAILWAY-APP.up.railway.app/encoder.min.js"
   data-interval="30000"
   data-event-count="100"
-  data-headers='{"Authorization":"Bearer YOUR_TOKEN"}'
+  data-event-name="Fingerprint Generated"
 ></script>
 ```
 
-The encoder auto-initializes when the script loads with a `data-endpoint` attribute.
-
-## Configuration
-
 | Attribute | Default | Description |
 |-----------|---------|-------------|
-| `data-endpoint` | (required) | URL to POST fingerprint payloads to |
-| `data-interval` | `30000` | Emit every N milliseconds (0 to disable) |
-| `data-event-count` | `100` | Emit every N events (0 to disable) |
-| `data-headers` | `{}` | JSON object of custom HTTP headers |
+| `data-interval` | `30000` | Emit every N milliseconds (set to 0 to disable) |
+| `data-event-count` | `100` | Emit every N events (set to 0 to disable) |
+| `data-event-name` | `Fingerprint Generated` | Custom event name sent to FullStory |
+
+## What Gets Sent to FullStory
+
+Each emission fires a custom event with:
+
+```javascript
+FS('trackEvent', {
+  name: 'Fingerprint Generated',
+  properties: {
+    sessionId: 'm1abc123-x7yz9w',
+    triggerType: 'interval',        // interval | event_count | session_end | manual
+    dimensions: 32,
+    timestamp: 1700000000000,
+    d0: 0.123456,                   // fingerprint dimension 0
+    d1: -0.456789,                  // fingerprint dimension 1
+    // ... d2 through d31
+  }
+});
+```
+
+Each dimension (`d0`-`d31`) is a float representing one axis of the 32-dimensional behavioral fingerprint.
 
 ## JavaScript API
 
@@ -42,7 +96,7 @@ The encoder exposes `window.Encoder` for manual control:
 const fp = window.Encoder.getFingerprint();
 // => [0.123, -0.456, 0.789, ...] (32 numbers)
 
-// Manually trigger a POST to the configured endpoint
+// Manually trigger sending to FullStory
 window.Encoder.send();
 
 // Pause event collection and emission
@@ -51,32 +105,27 @@ window.Encoder.pause();
 // Resume collection and emission
 window.Encoder.resume();
 
-// Programmatic initialization (alternative to data-* attributes)
+// Programmatic initialization with custom config
 window.Encoder.init({
-  endpoint: 'https://api.example.com/fingerprint',
-  interval: 30000,
-  eventCount: 100,
-  headers: { 'Authorization': 'Bearer token' },
+  interval: 60000,
+  eventCount: 200,
+  eventName: 'User Fingerprint',
 });
 
 // Tear down and clean up
 window.Encoder.destroy();
 ```
 
-## Payload Format
+## Railway Deployment
 
-Each POST sends a JSON body:
+This repo includes a static file server ready for Railway:
 
-```json
-{
-  "fingerprint": [0.123, -0.456, 0.789, "... 32 floats total"],
-  "timestamp": 1700000000000,
-  "sessionId": "m1abc123-x7yz9w",
-  "triggerType": "interval"
-}
-```
+1. Connect this GitHub repo to a new Railway project
+2. Railway auto-detects the `Procfile` and runs `node server/index.js`
+3. In Railway Settings > Networking, click "Generate Domain"
+4. Use your Railway URL as the script `src`
 
-`triggerType` is one of: `"interval"`, `"event_count"`, `"session_end"`, `"manual"`.
+The server simply serves `dist/encoder.min.js` with CORS headers.
 
 ## Events Captured
 
@@ -95,36 +144,9 @@ Each POST sends a JSON body:
 ## Building from Source
 
 ```bash
-# Install dependencies
 npm install
-
-# Generate model weights and build the full bundle (includes TF.js)
 npm run build
-# Output: dist/encoder.min.js (~877KB, ~180KB gzipped)
-
-# Build slim version (requires TF.js loaded separately via CDN)
-npm run build:slim
-# Output: dist/encoder.slim.js (~15KB gzipped)
 ```
-
-For the slim build, load TF.js from a CDN before the encoder script:
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4/dist/tf.min.js"></script>
-<script src="encoder.slim.js" data-endpoint="..."></script>
-```
-
-## Architecture
-
-```
-DOM Events → EventCollector → FeatureExtractor → GRU Encoder → 32-dim State
-                                                                    ↓
-                                                          TriggerManager
-                                                                    ↓
-                                                          HTTP Sender → POST
-```
-
-The GRU encoder processes events one at a time, updating its 32-dimensional hidden state with each event. This state vector is the fingerprint -- a compact, continuous representation of the user's behavioral patterns up to that point.
 
 ## Model Details
 

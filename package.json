@@ -5,6 +5,7 @@
   "main": "dist/encoder.min.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "start": "node server/index.js",
     "build": "webpack --mode production",
     "build:slim": "webpack --mode production --env external_tf",
     "build:dev": "webpack --mode development",

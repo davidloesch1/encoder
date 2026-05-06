@@ -1,62 +1,40 @@
-import { FingerprintPayload, TriggerType } from './types';
+import { TriggerType } from './types';
+
+declare global {
+  interface Window {
+    FS?: (command: string, payload: Record<string, unknown>) => void;
+  }
+}
 
 export class FingerprintSender {
-  private endpoint: string;
-  private headers: Record<string, string>;
   private sessionId: string;
+  private eventName: string;
 
-  constructor(endpoint: string, headers: Record<string, string>, sessionId: string) {
-    this.endpoint = endpoint;
-    this.headers = headers;
+  constructor(sessionId: string, eventName = 'Fingerprint Generated') {
     this.sessionId = sessionId;
+    this.eventName = eventName;
   }
 
   send(fingerprint: Float32Array, triggerType: TriggerType): void {
-    if (!this.endpoint) return;
+    const FS = window.FS;
+    if (!FS) return;
 
-    const payload: FingerprintPayload = {
-      fingerprint: Array.from(fingerprint),
-      timestamp: Date.now(),
+    const fp = Array.from(fingerprint);
+
+    const properties: Record<string, unknown> = {
       sessionId: this.sessionId,
       triggerType,
+      dimensions: fp.length,
+      timestamp: Date.now(),
     };
 
-    if (triggerType === 'session_end') {
-      this.sendBeacon(payload);
-    } else {
-      this.sendFetch(payload);
+    for (let i = 0; i < fp.length; i++) {
+      properties[`d${i}`] = Math.round(fp[i] * 1000000) / 1000000;
     }
-  }
 
-  private sendBeacon(payload: FingerprintPayload): void {
-    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-      navigator.sendBeacon(this.endpoint, blob);
-    } else {
-      this.sendFetch(payload);
-    }
-  }
-
-  private sendFetch(payload: FingerprintPayload): void {
-    const body = JSON.stringify(payload);
-    fetch(this.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.headers,
-      },
-      body,
-      keepalive: true,
-    }).catch(() => {
-      // Silently fail - fingerprint delivery is best-effort
+    FS('trackEvent', {
+      name: this.eventName,
+      properties,
     });
-  }
-
-  updateEndpoint(endpoint: string): void {
-    this.endpoint = endpoint;
-  }
-
-  updateHeaders(headers: Record<string, string>): void {
-    this.headers = headers;
   }
 }

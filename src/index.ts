@@ -26,7 +26,7 @@ class FingerprintEncoder implements EncoderInstance {
 
     this.encoder = new GRUEncoder();
     this.features = new FeatureExtractor();
-    this.sender = new FingerprintSender(config.endpoint, config.headers, sessionId);
+    this.sender = new FingerprintSender(sessionId, config.eventName);
 
     this.collector = new EventCollector((event) => {
       if (!this.ready) return;
@@ -88,26 +88,15 @@ function generateSessionId(): string {
 }
 
 function parseConfigFromScript(): EncoderConfig {
-  const scripts = document.querySelectorAll('script[data-endpoint]');
+  const scripts = document.querySelectorAll('script[src*="encoder"]');
   const script = scripts[scripts.length - 1] as HTMLScriptElement | undefined;
 
   if (!script) return { ...DEFAULT_CONFIG };
 
-  let headers: Record<string, string> = {};
-  const headersAttr = script.getAttribute('data-headers');
-  if (headersAttr) {
-    try {
-      headers = JSON.parse(headersAttr);
-    } catch {
-      // Invalid JSON in data-headers, ignore
-    }
-  }
-
   return {
-    endpoint: script.getAttribute('data-endpoint') || '',
     interval: parseInt(script.getAttribute('data-interval') || '', 10) || DEFAULT_CONFIG.interval,
     eventCount: parseInt(script.getAttribute('data-event-count') || '', 10) || DEFAULT_CONFIG.eventCount,
-    headers,
+    eventName: script.getAttribute('data-event-name') || DEFAULT_CONFIG.eventName,
   };
 }
 
@@ -148,18 +137,15 @@ const api = {
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   (window as any).Encoder = api;
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      const config = parseConfigFromScript();
-      if (config.endpoint) {
-        api.init(config);
-      }
-    });
-  } else {
+  const autoInit = () => {
     const config = parseConfigFromScript();
-    if (config.endpoint) {
-      api.init(config);
-    }
+    api.init(config);
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoInit);
+  } else {
+    autoInit();
   }
 }
 
